@@ -3,14 +3,15 @@ package main
 import (
 	"net/http"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 )
 
 type SignUpRequest struct {
-	Name     string `json:"name"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
-	BirthDay string `json:"birth_day"`
+	Name     string `json:"name" validate:"required"`
+	Password string `json:"password" validate:"required"`
+	Email    string `json:"email" validate:"required,email"`
+	BirthDay string `json:"birth_day" validate:"required"`
 }
 
 type SignUpResponse struct {
@@ -19,12 +20,12 @@ type SignUpResponse struct {
 }
 
 type LoginRequest struct {
-	Name     string `json:"name"`
-	Password string `json:"password"`
+	Name     string `json:"name" validate:"required"`
+	Password string `json:"password" validate:"required"`
 }
 
 type GetUserRequest struct {
-	ID int `param:"id"`
+	ID int `param:"id" validate:"gte=1"`
 }
 
 type GetUserResponse struct {
@@ -34,8 +35,23 @@ type GetUserResponse struct {
 	BirthDay string `json:"birth_day"`
 }
 
+type CustomValidator struct {
+	validator *validator.Validate
+}
+
+func (cv *CustomValidator) Validate(i interface{}) error {
+	if err := cv.validator.Struct(i); err != nil {
+		// Optionally, you could return the error to give each route more control over the status code
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	return nil
+}
+
 func NewRouter() *echo.Echo {
 	e := echo.New()
+
+	// set validator
+	e.Validator = &CustomValidator{validator: validator.New()}
 
 	e.POST("/signup", func(c echo.Context) error {
 		// parse request
@@ -44,7 +60,10 @@ func NewRouter() *echo.Echo {
 			return echo.NewHTTPError(http.StatusBadRequest, "invalid request")
 		}
 
-		// Todo: validate
+		// validate
+		if err := c.Validate(req); err != nil {
+			return err
+		}
 
 		// Todo: sign up usecase
 
@@ -60,7 +79,10 @@ func NewRouter() *echo.Echo {
 			return echo.NewHTTPError(http.StatusBadRequest, "invalid request")
 		}
 
-		// Todo: validate
+		// validate
+		if err := c.Validate(req); err != nil {
+			return err
+		}
 
 		// Todo: get user usecase
 
@@ -102,7 +124,11 @@ func NewRouter() *echo.Echo {
 			return echo.NewHTTPError(http.StatusBadRequest, "invalid request")
 		}
 
-		// Todo: validate
+		// validate
+		if err := c.Validate(req); err != nil {
+			c.Logger().Info(err)
+			return err
+		}
 
 		// Todo: login usecase
 
