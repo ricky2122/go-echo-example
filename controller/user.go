@@ -33,9 +33,14 @@ type GetUserResponse struct {
 	BirthDay string `json:"birth_day"`
 }
 
+type GetUsersResponse struct {
+	Users []GetUserResponse `json:"users"`
+}
+
 type IUserUseCase interface {
 	SignUp(usecase.SignUpUseCaseInput) (*usecase.SignUpUseCaseOutput, error)
 	GetUser(usecase.GetUserUseCaseInput) (*usecase.GetUserUseCaseOutput, error)
+	GetUsers() (*usecase.GetUsersUseCaseOutput, error)
 }
 
 type UserController struct {
@@ -121,22 +126,29 @@ func (uc *UserController) GetUser(c echo.Context) error {
 }
 
 func (ur *UserController) GetUsers(c echo.Context) error {
-	// Todo: get users usecase
+	// get users usecase
+	output, err := ur.uuc.GetUsers()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal server error")
+	}
+
+	// user is empty
+	if output == nil {
+		return c.JSONPretty(http.StatusOK, GetUsersResponse{Users: []GetUserResponse{}}, "  ")
+	}
 
 	// send response
-	res := []GetUserResponse{
-		{
-			ID:       1,
-			Name:     "example01",
-			Email:    "example01",
-			BirthDay: "2001-01-01",
-		},
-		{
-			ID:       2,
-			Name:     "example02",
-			Email:    "example02",
-			BirthDay: "2002-01-01",
-		},
+	users := make([]GetUserResponse, 0, len(output.Users))
+	for _, outputUser := range output.Users {
+		userResp := GetUserResponse{
+			ID:       outputUser.ID,
+			Name:     outputUser.Name,
+			Email:    outputUser.Email,
+			BirthDay: outputUser.BirthDay,
+		}
+		users = append(users, userResp)
 	}
+	res := GetUsersResponse{Users: users}
+
 	return c.JSONPretty(http.StatusOK, res, "  ")
 }

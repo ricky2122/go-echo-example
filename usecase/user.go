@@ -36,6 +36,10 @@ type GetUserUseCaseOutput struct {
 	BirthDay string
 }
 
+type GetUsersUseCaseOutput struct {
+	Users []GetUserUseCaseOutput
+}
+
 type IUserRepository interface {
 	IsExist(ctx context.Context, name string) (bool, error)
 	Create(ctx context.Context, newUser domain.User) (*domain.User, error)
@@ -99,6 +103,10 @@ func (uc *UserUseCase) GetUser(input GetUserUseCaseInput) (*GetUserUseCaseOutput
 		Email:    user.GetEmail(),
 		BirthDay: user.GetBirthDay().String(),
 	}
-
 	return output, nil
+}
+
+func (uc *UserUseCase) GetUsers() (*GetUsersUseCaseOutput, error) {
+	// Todo: Implement
+	return nil, nil
 }

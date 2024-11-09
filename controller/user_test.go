@@ -15,8 +15,9 @@ import (
 )
 
 type TestStubUserUseCase struct {
-	signUpOutputStore  map[string]*usecase.SignUpUseCaseOutput
-	getUserOutputStore map[int]*usecase.GetUserUseCaseOutput
+	signUpOutputStore   map[string]*usecase.SignUpUseCaseOutput
+	getUserOutputStore  map[int]*usecase.GetUserUseCaseOutput
+	getUsersOutputStore usecase.GetUsersUseCaseOutput
 }
 
 func (s *TestStubUserUseCase) SignUp(input usecase.SignUpUseCaseInput) (*usecase.SignUpUseCaseOutput, error) {
@@ -36,6 +37,10 @@ func (s *TestStubUserUseCase) GetUser(input usecase.GetUserUseCaseInput) (*useca
 		return nil, usecase.ErrUserNotFound
 	}
 	return output, nil
+}
+
+func (s *TestStubUserUseCase) GetUsers() (*usecase.GetUsersUseCaseOutput, error) {
+	return &s.getUsersOutputStore, nil
 }
 
 func TestSignUp(t *testing.T) {
@@ -213,7 +218,7 @@ func TestGetUser(t *testing.T) {
 	})
 
 	t.Run("StatusNotFound", func(t *testing.T) {
-		// Set up Echo with a custom error handler
+		// Set up
 		e := echo.New()
 		e.Validator = api.NewCustomValidator()
 
@@ -242,6 +247,92 @@ func TestGetUser(t *testing.T) {
 				assert.Equal(t, http.StatusNotFound, err.Code)
 				assert.Equal(t, userNotFoundMsg, err.Message)
 			}
+		}
+	})
+}
+
+func TestGetUsers(t *testing.T) {
+	// Set up
+	e := echo.New()
+	e.Validator = api.NewCustomValidator()
+
+	getUsersEmptyRes := `
+	{
+  	  "users": []
+    }`
+	getUsersTwoUsersRes := `
+	{
+	  "users": [
+		{
+			"id": 1,
+			"name": "test01",
+			"email": "test01@test.com",
+			"birth_day": "2001-01-01"
+		},
+		{
+			"id": 2,
+			"name": "test02",
+			"email": "test02@test.com",
+			"birth_day": "2002-01-01"
+		}
+	  ]
+	}
+	`
+	t.Run("StatusOK", func(t *testing.T) {
+		cases := []struct {
+			name string
+			want string
+		}{
+			{
+				name: "empty",
+				want: getUsersEmptyRes,
+			},
+			{
+				name: "two users",
+				want: getUsersTwoUsersRes,
+			},
+		}
+
+		for _, tt := range cases {
+			// Create a test user controller with a stub user use case
+			var store usecase.GetUsersUseCaseOutput
+			switch tt.name {
+			case "empty":
+				store = usecase.GetUsersUseCaseOutput{}
+			case "two users":
+				store = usecase.GetUsersUseCaseOutput{
+					Users: []usecase.GetUserUseCaseOutput{
+						{
+							ID:       1,
+							Name:     "test01",
+							Email:    "test01@test.com",
+							BirthDay: "2001-01-01",
+						},
+						{
+							ID:       2,
+							Name:     "test02",
+							Email:    "test02@test.com",
+							BirthDay: "2002-01-01",
+						},
+					},
+				}
+			}
+			uc := controller.NewUserController(&TestStubUserUseCase{
+				getUsersOutputStore: store,
+			})
+			t.Run(tt.name, func(t *testing.T) {
+				req := httptest.NewRequest(http.MethodGet, "/users", nil)
+				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+				rec := httptest.NewRecorder()
+
+				c := e.NewContext(req, rec)
+
+				// Assertions
+				if assert.NoError(t, uc.GetUsers(c)) {
+					assert.Equal(t, http.StatusOK, rec.Code)
+					assert.JSONEq(t, tt.want, rec.Body.String())
+				}
+			})
 		}
 	})
 }
