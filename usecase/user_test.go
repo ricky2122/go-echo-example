@@ -30,6 +30,15 @@ func (s *TestStubUserRepository) Create(_ context.Context, newUser domain.User) 
 	return &newUser, nil
 }
 
+func (s *TestStubUserRepository) GetUserByID(_ context.Context, userID domain.UserID) (*domain.User, error) {
+	for _, user := range s.userStore {
+		if userID == user.GetID() {
+			return &user, nil
+		}
+	}
+	return nil, nil
+}
+
 func TestSignUpUseCase(t *testing.T) {
 	t.Run("Success SignUp", func(t *testing.T) {
 		uuc := usecase.NewUserUseCase(&TestStubUserRepository{})
@@ -90,5 +99,71 @@ func TestSignUpUseCase(t *testing.T) {
 		_, err := uuc.SignUp(input)
 		wantErr := errors.New("user already exists")
 		assert.Equal(t, wantErr, err)
+	})
+}
+
+func TestGetUserUseCase(t *testing.T) {
+	t.Run("Success GetUser", func(t *testing.T) {
+		user01 := domain.NewUser(
+			"test01",
+			"test01",
+			"test01@test.com",
+			time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC),
+		)
+		user01.SetID(1)
+
+		user02 := domain.NewUser(
+			"test02",
+			"test02",
+			"test02@test.com",
+			time.Date(2002, 1, 1, 0, 0, 0, 0, time.UTC),
+		)
+		user02.SetID(2)
+
+		users := []domain.User{user01, user02}
+		uuc := usecase.NewUserUseCase(&TestStubUserRepository{userStore: users})
+
+		cases := []struct {
+			name  string
+			input usecase.GetUserUseCaseInput
+			want  *usecase.GetUserUseCaseOutput
+		}{
+			{
+				name:  "first user",
+				input: usecase.GetUserUseCaseInput{ID: 1},
+				want: &usecase.GetUserUseCaseOutput{
+					ID:       1,
+					Name:     "test01",
+					Email:    "test01@test.com",
+					BirthDay: "2001-01-01",
+				},
+			},
+			{
+				name:  "second user",
+				input: usecase.GetUserUseCaseInput{ID: 2},
+				want: &usecase.GetUserUseCaseOutput{
+					ID:       2,
+					Name:     "test02",
+					Email:    "test02@test.com",
+					BirthDay: "2002-01-01",
+				},
+			},
+		}
+
+		for _, tt := range cases {
+			t.Run(tt.name, func(t *testing.T) {
+				got, err := uuc.GetUser(tt.input)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			})
+		}
+	})
+
+	t.Run("user not found", func(t *testing.T) {
+		uuc := usecase.NewUserUseCase(&TestStubUserRepository{})
+		input := usecase.GetUserUseCaseInput{ID: 1}
+
+		_, err := uuc.GetUser(input)
+		assert.Equal(t, usecase.ErrUserNotFound, err)
 	})
 }

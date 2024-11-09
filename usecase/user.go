@@ -39,6 +39,7 @@ type GetUserUseCaseOutput struct {
 type IUserRepository interface {
 	IsExist(ctx context.Context, name string) (bool, error)
 	Create(ctx context.Context, newUser domain.User) (*domain.User, error)
+	GetUserByID(ctx context.Context, id domain.UserID) (*domain.User, error)
 }
 
 type UserUseCase struct {
@@ -79,6 +80,25 @@ func (uc *UserUseCase) SignUp(input SignUpUseCaseInput) (*SignUpUseCaseOutput, e
 }
 
 func (uc *UserUseCase) GetUser(input GetUserUseCaseInput) (*GetUserUseCaseOutput, error) {
-	// Todo: Implement
-	return nil, nil
+	// get user by UserID
+	ctx := context.Background()
+	userID := domain.UserID(input.ID)
+	user, err := uc.ur.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// check if user exists
+	if user == nil {
+		return nil, ErrUserNotFound
+	}
+
+	output := &GetUserUseCaseOutput{
+		ID:       user.GetID().Int(),
+		Name:     user.GetName(),
+		Email:    user.GetEmail(),
+		BirthDay: user.GetBirthDay().String(),
+	}
+
+	return output, nil
 }

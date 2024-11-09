@@ -56,6 +56,25 @@ func (ur *UserRepository) Create(ctx context.Context, newUser domain.User) (*dom
 	return &createdUser, nil
 }
 
+func (ur *UserRepository) GetUserByID(ctx context.Context, userID domain.UserID) (*domain.User, error) {
+	var userModel UserModel
+	if err := ur.db.NewSelect().
+		Model(&userModel).
+		Where("id = ?", userID).
+		Scan(ctx); err != nil {
+		return nil, err
+	}
+
+	// check if user exists
+	if userModel.ID == 0 {
+		return nil, nil
+	}
+
+	user := convertToUser(userModel)
+
+	return &user, nil
+}
+
 func convertToUserModel(user domain.User) UserModel {
 	return UserModel{
 		ID:       user.GetID().Int(),
