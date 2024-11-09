@@ -298,7 +298,9 @@ func TestGetUsers(t *testing.T) {
 			var store usecase.GetUsersUseCaseOutput
 			switch tt.name {
 			case "empty":
-				store = usecase.GetUsersUseCaseOutput{}
+				store = usecase.GetUsersUseCaseOutput{
+					Users: []usecase.GetUserUseCaseOutput{},
+				}
 			case "two users":
 				store = usecase.GetUsersUseCaseOutput{
 					Users: []usecase.GetUserUseCaseOutput{

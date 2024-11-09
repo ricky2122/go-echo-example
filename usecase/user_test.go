@@ -180,7 +180,9 @@ func TestGetUsersUseCase(t *testing.T) {
 		}{
 			{
 				name: "empty",
-				want: nil,
+				want: &usecase.GetUsersUseCaseOutput{
+					Users: []usecase.GetUserUseCaseOutput{},
+				},
 			},
 			{
 				name: "two users",
@@ -228,10 +230,14 @@ func TestGetUsersUseCase(t *testing.T) {
 				store = []domain.User{user01, user02}
 			}
 			uuc := usecase.NewUserUseCase(&TestStubUserRepository{userStore: store})
-			got, err := uuc.GetUsers()
-			if assert.NoError(t, err) {
-				assert.Equal(t, tt.want, got)
-			}
+
+			t.Run(tt.name, func(t *testing.T) {
+				got, err := uuc.GetUsers()
+				if assert.NoError(t, err) {
+					assert.Equal(t, tt.want, got)
+				}
+			})
+
 		}
 	})
 }

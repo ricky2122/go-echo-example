@@ -73,8 +73,14 @@ func (ur *UserRepository) GetUserByID(ctx context.Context, userID domain.UserID)
 }
 
 func (ur *UserRepository) GetUsers(ctx context.Context) ([]domain.User, error) {
-	// Todo: Implement
-	return nil, nil
+	var userModels []UserModel
+	if err := ur.db.NewSelect().Model(&userModels).Scan(ctx); err != nil {
+		return nil, err
+	}
+
+	users := convertToUsers(userModels)
+
+	return users, nil
 }
 
 func convertToUserModel(user domain.User) UserModel {
@@ -97,4 +103,12 @@ func convertToUser(userModel UserModel) domain.User {
 	user.SetID(userModel.ID)
 
 	return user
+}
+
+func convertToUsers(userModels []UserModel) []domain.User {
+	users := make([]domain.User, 0, len(userModels))
+	for _, userModel := range userModels {
+		users = append(users, convertToUser(userModel))
+	}
+	return users
 }

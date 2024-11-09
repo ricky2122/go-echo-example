@@ -114,11 +114,6 @@ func (uc *UserUseCase) GetUsers() (*GetUsersUseCaseOutput, error) {
 		return nil, err
 	}
 
-	// check if users is nil (empty)
-	if users == nil {
-		return nil, nil
-	}
-
 	outputUsers := make([]GetUserUseCaseOutput, 0, len(users))
 	for _, user := range users {
 		outputUser := GetUserUseCaseOutput{
