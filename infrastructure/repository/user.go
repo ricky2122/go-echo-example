@@ -72,6 +72,11 @@ func (ur *UserRepository) GetUserByID(ctx context.Context, userID domain.UserID)
 	return &user, nil
 }
 
+func (ur *UserRepository) GetUsers(ctx context.Context) ([]domain.User, error) {
+	// Todo: Implement
+	return nil, nil
+}
+
 func convertToUserModel(user domain.User) UserModel {
 	return UserModel{
 		ID:       user.GetID().Int(),

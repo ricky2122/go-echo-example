@@ -39,6 +39,10 @@ func (s *TestStubUserRepository) GetUserByID(_ context.Context, userID domain.Us
 	return nil, nil
 }
 
+func (s *TestStubUserRepository) GetUsers(_ context.Context) ([]domain.User, error) {
+	return s.userStore, nil
+}
+
 func TestSignUpUseCase(t *testing.T) {
 	t.Run("Success SignUp", func(t *testing.T) {
 		uuc := usecase.NewUserUseCase(&TestStubUserRepository{})
@@ -165,5 +169,69 @@ func TestGetUserUseCase(t *testing.T) {
 
 		_, err := uuc.GetUser(input)
 		assert.Equal(t, usecase.ErrUserNotFound, err)
+	})
+}
+
+func TestGetUsersUseCase(t *testing.T) {
+	t.Run("Success GetUsers", func(t *testing.T) {
+		cases := []struct {
+			name string
+			want *usecase.GetUsersUseCaseOutput
+		}{
+			{
+				name: "empty",
+				want: nil,
+			},
+			{
+				name: "two users",
+				want: &usecase.GetUsersUseCaseOutput{
+					Users: []usecase.GetUserUseCaseOutput{
+						{
+							ID:       1,
+							Name:     "test01",
+							Email:    "test01@test.com",
+							BirthDay: "2001-01-01",
+						},
+						{
+							ID:       2,
+							Name:     "test02",
+							Email:    "test02@test.com",
+							BirthDay: "2002-01-01",
+						},
+					},
+				},
+			},
+		}
+
+		for _, tt := range cases {
+			var store []domain.User
+			switch tt.name {
+			case "empty":
+				store = nil
+			case "two users":
+				user01 := domain.NewUser(
+					"test01",
+					"test01",
+					"test01@test.com",
+					time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC),
+				)
+				user01.SetID(1)
+
+				user02 := domain.NewUser(
+					"test02",
+					"test02",
+					"test02@test.com",
+					time.Date(2002, 1, 1, 0, 0, 0, 0, time.UTC),
+				)
+				user02.SetID(2)
+
+				store = []domain.User{user01, user02}
+			}
+			uuc := usecase.NewUserUseCase(&TestStubUserRepository{userStore: store})
+			got, err := uuc.GetUsers()
+			if assert.NoError(t, err) {
+				assert.Equal(t, tt.want, got)
+			}
+		}
 	})
 }

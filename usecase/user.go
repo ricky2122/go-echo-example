@@ -44,6 +44,7 @@ type IUserRepository interface {
 	IsExist(ctx context.Context, name string) (bool, error)
 	Create(ctx context.Context, newUser domain.User) (*domain.User, error)
 	GetUserByID(ctx context.Context, id domain.UserID) (*domain.User, error)
+	GetUsers(ctx context.Context) ([]domain.User, error)
 }
 
 type UserUseCase struct {
@@ -107,6 +108,29 @@ func (uc *UserUseCase) GetUser(input GetUserUseCaseInput) (*GetUserUseCaseOutput
 }
 
 func (uc *UserUseCase) GetUsers() (*GetUsersUseCaseOutput, error) {
-	// Todo: Implement
-	return nil, nil
+	ctx := context.Background()
+	users, err := uc.ur.GetUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// check if users is nil (empty)
+	if users == nil {
+		return nil, nil
+	}
+
+	outputUsers := make([]GetUserUseCaseOutput, 0, len(users))
+	for _, user := range users {
+		outputUser := GetUserUseCaseOutput{
+			ID:       user.GetID().Int(),
+			Name:     user.GetName(),
+			Email:    user.GetEmail(),
+			BirthDay: user.GetBirthDay().String(),
+		}
+		outputUsers = append(outputUsers, outputUser)
+	}
+
+	output := &GetUsersUseCaseOutput{Users: outputUsers}
+
+	return output, nil
 }
