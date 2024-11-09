@@ -14,65 +14,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var singUpReq01 = `{
-  "name":"test01",
-  "password":"test01",
-  "email":"test01@test.com",
-  "birth_day":"2001-01-01"
-}
-`
-
-var signUpRes01 = `{
-  "id": 1,
-  "name": "test01"
-}
-`
-
-var signUpReq02 = `{
-  "name":"test02",
-  "password":"test02",
-  "email":"test02@test.com",
-  "birth_day":"2002-01-01"
-}
-`
-
-var signUpRes02 = `{
-  "id": 2,
-  "name": "test02"
-}
-`
-
-var getUserRes01 = `{
-  "id": 1,
-  "name": "test01",
-  "email": "test01@test.com",
-  "birth_day": "2001-01-01"
-}
-`
-
-var getUserRes02 = `{
-  "id": 2,
-  "name": "test02",
-  "email": "test02@test.com",
-  "birth_day": "2002-01-01"
-}
-`
-
-var userNotFoundRes = `{
-  "message": "user not found"
-}
-`
-
-var userNotFoundMsg = "user not found"
-
 type TestStubUserUseCase struct {
-	counter            int
+	signUpOutputStore  map[string]*usecase.SignUpUseCaseOutput
 	getUserOutputStore map[int]*usecase.GetUserUseCaseOutput
 }
 
 func (s *TestStubUserUseCase) SignUp(input usecase.SignUpUseCaseInput) (*usecase.SignUpUseCaseOutput, error) {
-	s.counter++
-	output := &usecase.SignUpUseCaseOutput{ID: s.counter, Name: input.Name}
+	_, ok := s.signUpOutputStore[input.Name]
+	if ok {
+		return nil, usecase.ErrUserAlreadyExists
+	}
+	output := &usecase.SignUpUseCaseOutput{ID: len(s.signUpOutputStore) + 1, Name: input.Name}
+	s.signUpOutputStore[input.Name] = output
+
 	return output, nil
 }
 
@@ -85,13 +39,41 @@ func (s *TestStubUserUseCase) GetUser(input usecase.GetUserUseCaseInput) (*useca
 }
 
 func TestSignUp(t *testing.T) {
+	signUpReq01 := `{
+		"name":"test01",
+		"password":"test01",
+		"email":"test01@test.com",
+		"birth_day":"2001-01-01"
+	  }
+	  `
+
+	signUpRes01 := `{
+		"id": 1,
+		"name": "test01"
+	  }
+	  `
+
+	signUpReq02 := `{
+		"name":"test02",
+		"password":"test02",
+		"email":"test02@test.com",
+		"birth_day":"2002-01-01"
+	  }
+	  `
+
+	signUpRes02 := `{
+		"id": 2,
+		"name": "test02"
+	  }
+	  `
 	// Setup
 	e := echo.New()
 	e.Validator = api.NewCustomValidator()
 
-	uc := controller.NewUserController(&TestStubUserUseCase{})
-
 	t.Run("StatusCreated", func(t *testing.T) {
+		store := map[string]*usecase.SignUpUseCaseOutput{}
+		uc := controller.NewUserController(&TestStubUserUseCase{signUpOutputStore: store})
+
 		cases := []struct {
 			name    string
 			reqJSON string
@@ -99,7 +81,7 @@ func TestSignUp(t *testing.T) {
 		}{
 			{
 				name:    "id:1",
-				reqJSON: singUpReq01,
+				reqJSON: signUpReq01,
 				want:    signUpRes01,
 			},
 			{
@@ -125,9 +107,52 @@ func TestSignUp(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("StatusBadRequest", func(t *testing.T) {
+		userAlreadyExistsMsg := "user already exists"
+
+		store := map[string]*usecase.SignUpUseCaseOutput{}
+		store["test01"] = &usecase.SignUpUseCaseOutput{ID: 1, Name: "test01"}
+		uc := controller.NewUserController(&TestStubUserUseCase{signUpOutputStore: store})
+
+		t.Run("user already exists", func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/signup", strings.NewReader(signUpReq01))
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+
+			c := e.NewContext(req, rec)
+
+			// Assertions
+			err := uc.SignUp(c)
+			if assert.NotNil(t, err) {
+				err, res := err.(*echo.HTTPError)
+				if res {
+					assert.Equal(t, http.StatusBadRequest, err.Code)
+					assert.Equal(t, userAlreadyExistsMsg, err.Message)
+				}
+			}
+		})
+	})
 }
 
 func TestGetUser(t *testing.T) {
+	getUserRes01 := `{
+		"id": 1,
+		"name": "test01",
+		"email": "test01@test.com",
+		"birth_day": "2001-01-01"
+	  }
+	  `
+
+	getUserRes02 := `{
+		"id": 2,
+		"name": "test02",
+		"email": "test02@test.com",
+		"birth_day": "2002-01-01"
+	  }
+	  `
+
+	userNotFoundMsg := "user not found"
 	t.Run("StatusOK", func(t *testing.T) {
 		// Setup
 		e := echo.New()
