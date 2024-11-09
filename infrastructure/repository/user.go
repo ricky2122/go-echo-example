@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/ricky2122/go-echo-example/domain"
@@ -58,16 +60,11 @@ func (ur *UserRepository) Create(ctx context.Context, newUser domain.User) (*dom
 
 func (ur *UserRepository) GetUserByID(ctx context.Context, userID domain.UserID) (*domain.User, error) {
 	var userModel UserModel
-	if err := ur.db.NewSelect().
-		Model(&userModel).
-		Where("id = ?", userID).
-		Scan(ctx); err != nil {
+	if err := ur.db.NewSelect().Model(&userModel).Where("id = ?", userID).Scan(ctx); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, err
-	}
-
-	// check if user exists
-	if userModel.ID == 0 {
-		return nil, nil
 	}
 
 	user := convertToUser(userModel)
