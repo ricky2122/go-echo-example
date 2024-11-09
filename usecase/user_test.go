@@ -1,6 +1,7 @@
 package usecase_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -14,7 +15,7 @@ type TestStubUserRepository struct {
 	userStore []domain.User
 }
 
-func (s *TestStubUserRepository) IsExist(name string) (bool, error) {
+func (s *TestStubUserRepository) IsExist(_ context.Context, name string) (bool, error) {
 	for _, user := range s.userStore {
 		if name == user.GetName() {
 			return true, nil
@@ -23,7 +24,7 @@ func (s *TestStubUserRepository) IsExist(name string) (bool, error) {
 	return false, nil
 }
 
-func (s *TestStubUserRepository) Create(newUser domain.User) (*domain.User, error) {
+func (s *TestStubUserRepository) Create(_ context.Context, newUser domain.User) (*domain.User, error) {
 	newUser.SetID(len(s.userStore) + 1)
 	s.userStore = append(s.userStore, newUser)
 	return &newUser, nil

@@ -8,6 +8,7 @@ import (
 	"github.com/ricky2122/go-echo-example/controller"
 	"github.com/ricky2122/go-echo-example/infrastructure/repository"
 	"github.com/ricky2122/go-echo-example/usecase"
+	"github.com/uptrace/bun"
 )
 
 type CustomValidator struct {
@@ -26,13 +27,13 @@ func (cv *CustomValidator) Validate(i interface{}) error {
 	return nil
 }
 
-func NewRouter() *echo.Echo {
+func NewRouter(db *bun.DB) *echo.Echo {
 	e := echo.New()
 
 	// set validator
 	e.Validator = &CustomValidator{validator: validator.New()}
 
-	ur := repository.NewUserRepository()
+	ur := repository.NewUserRepository(db)
 	uuc := usecase.NewUserUseCase(ur)
 	uc := controller.NewUserController(uuc)
 	au := controller.NewAuthController()

@@ -1,11 +1,14 @@
 package usecase
 
 import (
+	"context"
 	"errors"
 	"time"
 
 	"github.com/ricky2122/go-echo-example/domain"
 )
+
+var ErrUserAlreadyExists = errors.New("user already exists")
 
 type SignUpUseCaseInput struct {
 	Name     string
@@ -20,8 +23,8 @@ type SignUpUseCaseOutput struct {
 }
 
 type IUserRepository interface {
-	IsExist(name string) (bool, error)
-	Create(newUser domain.User) (*domain.User, error)
+	IsExist(ctx context.Context, name string) (bool, error)
+	Create(ctx context.Context, newUser domain.User) (*domain.User, error)
 }
 
 type UserUseCase struct {
@@ -35,17 +38,19 @@ func NewUserUseCase(ur IUserRepository) *UserUseCase {
 func (uc *UserUseCase) SignUp(input SignUpUseCaseInput) (*SignUpUseCaseOutput, error) {
 	user := domain.NewUser(input.Name, input.Password, input.Email, input.BirthDay)
 
+	ctx := context.Background()
+
 	// check if user already exists
-	isExist, err := uc.ur.IsExist(user.GetName())
+	isExist, err := uc.ur.IsExist(ctx, user.GetName())
 	if err != nil {
 		return nil, err
 	}
 	if isExist {
-		return nil, errors.New("user already exists")
+		return nil, ErrUserAlreadyExists
 	}
 
 	// create user
-	createdUser, err := uc.ur.Create(user)
+	createdUser, err := uc.ur.Create(ctx, user)
 	if err != nil {
 		return nil, err
 	}

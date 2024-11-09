@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -56,7 +57,7 @@ func (uc *UserController) SignUp(c echo.Context) error {
 		return err
 	}
 
-	// parse birthday to time.Time
+	// parse birthday to time.Time from string(YYYY-mm-dd)
 	parseBirthDay, err := time.Parse(domain.BirthDayLayout, req.BirthDay)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid date format")
@@ -71,7 +72,10 @@ func (uc *UserController) SignUp(c echo.Context) error {
 	}
 	output, err := uc.uuc.SignUp(input)
 	if err != nil {
-		echo.NewHTTPError(http.StatusInternalServerError, "internal server error")
+		if errors.Is(err, usecase.ErrUserAlreadyExists) {
+			return echo.NewHTTPError(http.StatusBadRequest, "user already exists")
+		}
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal server error")
 	}
 
 	// send response
