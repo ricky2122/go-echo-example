@@ -35,6 +35,7 @@ type GetUserResponse struct {
 
 type IUserUseCase interface {
 	SignUp(usecase.SignUpUseCaseInput) (*usecase.SignUpUseCaseOutput, error)
+	GetUser(usecase.GetUserUseCaseInput) (*usecase.GetUserUseCaseOutput, error)
 }
 
 type UserController struct {
@@ -99,14 +100,22 @@ func (uc *UserController) GetUser(c echo.Context) error {
 		return err
 	}
 
-	// Todo: get user usecase
+	// get user usecase
+	input := usecase.GetUserUseCaseInput{ID: req.ID}
+	output, err := uc.uuc.GetUser(input)
+	if err != nil {
+		if errors.Is(err, usecase.ErrUserNotFound) {
+			return echo.NewHTTPError(http.StatusNotFound, "user not found")
+		}
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal server error")
+	}
 
 	// send response
 	res := GetUserResponse{
-		ID:       req.ID,
-		Name:     "example01",
-		Email:    "example01",
-		BirthDay: "2001-01-01",
+		ID:       output.ID,
+		Name:     output.Name,
+		Email:    output.Email,
+		BirthDay: output.BirthDay,
 	}
 	return c.JSONPretty(http.StatusOK, res, "  ")
 }

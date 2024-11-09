@@ -8,7 +8,10 @@ import (
 	"github.com/ricky2122/go-echo-example/domain"
 )
 
-var ErrUserAlreadyExists = errors.New("user already exists")
+var (
+	ErrUserAlreadyExists = errors.New("user already exists")
+	ErrUserNotFound      = errors.New("user not found")
+)
 
 type SignUpUseCaseInput struct {
 	Name     string
@@ -20,6 +23,17 @@ type SignUpUseCaseInput struct {
 type SignUpUseCaseOutput struct {
 	ID   int
 	Name string
+}
+
+type GetUserUseCaseInput struct {
+	ID int
+}
+
+type GetUserUseCaseOutput struct {
+	ID       int
+	Name     string
+	Email    string
+	BirthDay string
 }
 
 type IUserRepository interface {
@@ -62,4 +76,9 @@ func (uc *UserUseCase) SignUp(input SignUpUseCaseInput) (*SignUpUseCaseOutput, e
 	}
 
 	return output, nil
+}
+
+func (uc *UserUseCase) GetUser(input GetUserUseCaseInput) (*GetUserUseCaseOutput, error) {
+	// Todo: Implement
+	return nil, nil
 }
