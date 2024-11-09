@@ -2,8 +2,10 @@ package controller
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/ricky2122/go-echo-example/domain"
 	"github.com/ricky2122/go-echo-example/usecase"
 )
 
@@ -54,12 +56,18 @@ func (uc *UserController) SignUp(c echo.Context) error {
 		return err
 	}
 
+	// parse birthday to time.Time
+	parseBirthDay, err := time.Parse(domain.BirthDayLayout, req.BirthDay)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid date format")
+	}
+
 	// sign up usecase
 	input := usecase.SignUpUseCaseInput{
 		Name:     req.Name,
 		Password: req.Password,
 		Email:    req.Email,
-		BirthDay: req.BirthDay,
+		BirthDay: parseBirthDay,
 	}
 	output, err := uc.uuc.SignUp(input)
 	if err != nil {

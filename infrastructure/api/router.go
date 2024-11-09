@@ -6,6 +6,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/ricky2122/go-echo-example/controller"
+	"github.com/ricky2122/go-echo-example/infrastructure/repository"
 	"github.com/ricky2122/go-echo-example/usecase"
 )
 
@@ -31,7 +32,8 @@ func NewRouter() *echo.Echo {
 	// set validator
 	e.Validator = &CustomValidator{validator: validator.New()}
 
-	uuc := usecase.NewUserUseCase()
+	ur := repository.NewUserRepository()
+	uuc := usecase.NewUserUseCase(ur)
 	uc := controller.NewUserController(uuc)
 	au := controller.NewAuthController()
 
