@@ -34,16 +34,18 @@ func NewRouter(db *bun.DB) *echo.Echo {
 	e.Validator = &CustomValidator{validator: validator.New()}
 
 	ur := repository.NewUserRepository(db)
-	uuc := usecase.NewUserUseCase(ur)
-	uc := controller.NewUserController(uuc)
-	au := controller.NewAuthController()
+	uu := usecase.NewUserUseCase(ur)
+	uc := controller.NewUserController(uu)
+
+	au := usecase.NewAuthUseCase()
+	ac := controller.NewAuthController(au)
 
 	e.POST("/signup", uc.SignUp)
 	e.GET("/users/:id", uc.GetUser)
 	e.GET("/users", uc.GetUsers)
 
-	e.POST("/login", au.Login)
-	e.DELETE("/logout", au.Logout)
+	e.POST("/login", ac.Login)
+	e.DELETE("/logout", ac.Logout)
 
 	return e
 }
