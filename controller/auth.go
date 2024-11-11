@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/gorilla/sessions"
+	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/ricky2122/go-echo-example/usecase"
 )
@@ -46,7 +48,21 @@ func (ac *AuthController) Login(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "internal server error")
 	}
 
-	// Todo: set session_id to cookie
+	// set session_id to cookie
+	sess, err := session.Get("session_id", c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal server error")
+	}
+	sess.Options = &sessions.Options{
+		Path:     "/",
+		MaxAge:   86400 * 7,
+		HttpOnly: true,
+		Secure:   true,
+	}
+	sess.Values[input.Name] = input.Name
+	if err := sess.Save(c.Request(), c.Response()); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal server error")
+	}
 
 	// send response
 	return c.NoContent(http.StatusOK)

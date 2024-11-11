@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/gorilla/sessions"
+	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/ricky2122/go-echo-example/controller"
 	"github.com/ricky2122/go-echo-example/infrastructure/repository"
@@ -29,6 +31,9 @@ func (cv *CustomValidator) Validate(i interface{}) error {
 
 func NewRouter(db *bun.DB) *echo.Echo {
 	e := echo.New()
+
+	// session
+	e.Use(session.Middleware(sessions.NewCookieStore([]byte("secret"))))
 
 	// set validator
 	e.Validator = &CustomValidator{validator: validator.New()}
