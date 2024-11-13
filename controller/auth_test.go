@@ -2,7 +2,6 @@ package controller_test
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -32,29 +31,66 @@ func (s *TestStubAuthUseCase) Login(input usecase.LoginUseCaseInput) error {
 	return usecase.ErrLoginFailed
 }
 
+var testSessionUserID = "test01"
+
 type TestStubSessionStore struct {
 	sessionsStore map[string]*sessions.Session
+	options       *sessions.Options
+}
+
+var StubDefaultOpts *sessions.Options = &sessions.Options{
+	Path:     "/",
+	MaxAge:   86400 * 7,
+	HttpOnly: true,
 }
 
 func (s *TestStubSessionStore) Get(r *http.Request, name string) (*sessions.Session, error) {
-	sess, ok := s.sessionsStore[name]
-	if !ok {
-		newSess := sessions.NewSession(s, name)
-		s.sessionsStore[name] = newSess
-		return newSess, nil
-	}
-	return sess, nil
+	return sessions.GetRegistry(r).Get(s, name)
 }
 
 func (s *TestStubSessionStore) New(r *http.Request, name string) (*sessions.Session, error) {
-	newSess := sessions.NewSession(s, name)
-	s.sessionsStore[name] = newSess
-	return newSess, nil
+	session := sessions.NewSession(s, name)
+	session.Options = s.options
+	session.IsNew = true
+
+	c, err := r.Cookie(name)
+	if err != nil {
+		return session, nil
+	}
+	session.ID = c.Value
+
+	if _, ok := s.sessionsStore[name]; ok {
+		session.IsNew = false
+	} else {
+		s.sessionsStore[c.Value] = session
+	}
+
+	return session, nil
 }
 
-func (s *TestStubSessionStore) Save(r *http.Request, w http.ResponseWriter, sess *sessions.Session) error {
+func (s *TestStubSessionStore) Save(r *http.Request, w http.ResponseWriter, session *sessions.Session) error {
+	cookie := &http.Cookie{
+		Name:     session.Name(),
+		Value:    "",
+		Path:     session.Options.Path,
+		MaxAge:   session.Options.MaxAge,
+		HttpOnly: session.Options.HttpOnly,
+		Secure:   session.Options.Secure,
+	}
+
+	// Delete if max-age is <= 0
+	if session.Options.MaxAge <= 0 {
+		delete(s.sessionsStore, session.ID)
+		http.SetCookie(w, cookie)
+		return nil
+	}
+
+	if session.ID == "" {
+		session.ID = session.Name()
+	}
+
 	// Check if session_id is actually present
-	value, ok := sess.Values["session_id"]
+	value, ok := session.Values[controller.SessionKey]
 	if !ok {
 		return fmt.Errorf("session_id not found in session value")
 	}
@@ -65,22 +101,16 @@ func (s *TestStubSessionStore) Save(r *http.Request, w http.ResponseWriter, sess
 		return fmt.Errorf("session_id value cannot be asserted as string")
 	}
 
-	cookie := &http.Cookie{
-		Name:     sess.Name(),
-		Value:    strValue,
-		Path:     sess.Options.Path,
-		MaxAge:   sess.Options.MaxAge,
-		HttpOnly: sess.Options.HttpOnly,
-		Secure:   sess.Options.Secure,
-	}
+	s.sessionsStore[session.ID] = session
+
+	cookie.Value = strValue
+
 	http.SetCookie(w, cookie)
 
-	// Log success for debugging
-	log.Printf("Session saved: %v", sess.Values)
 	return nil
 }
 
-func TestLoginTest(t *testing.T) {
+func TestLogin(t *testing.T) {
 	loginReq := `{
 	  "name": "test01",
 	  "password": "test01"
@@ -124,7 +154,8 @@ func TestLoginTest(t *testing.T) {
 			// Check if the session cookie is correctly set
 			cookie := rec.Header().Get("Set-Cookie")
 			// Verify the session ID value within the cookie
-			assert.Contains(t, cookie, "session_id=test_session_id")
+			targetCookie := fmt.Sprintf("%s=%s", controller.SessionKey, testSessionUserID)
+			assert.Contains(t, cookie, targetCookie)
 		}
 	})
 
@@ -148,5 +179,38 @@ func TestLoginTest(t *testing.T) {
 				assert.Equal(t, loginFailedMsg, err.Message)
 			}
 		}
+	})
+}
+
+func TestLogout(t *testing.T) {
+	t.Run("StatusNoContent", func(t *testing.T) {
+		e := echo.New()
+		// Initialize the session store
+		store := &TestStubSessionStore{
+			sessionsStore: map[string]*sessions.Session{},
+		}
+
+		// Use the correct session middleware
+		e.Use(session.Middleware(store))
+
+		req := httptest.NewRequest(http.MethodPost, "/logout", nil)
+		cookie := fmt.Sprintf("%s=%s", controller.SessionKey, testSessionUserID)
+		req.Header.Set(echo.HeaderCookie, cookie)
+
+		rec := httptest.NewRecorder()
+
+		sess, _ := store.New(req, controller.SessionKey)
+		sess.Values[controller.SessionKey] = testSessionUserID
+		sess.Options = StubDefaultOpts
+		_ = store.Save(req, rec, sess)
+
+		c := e.NewContext(req, rec)
+		c.Set("_session_store", store)
+
+		ac := controller.NewAuthController(&TestStubAuthUseCase{})
+
+		// Assertions
+		assert.NoError(t, ac.Logout(c))
+		assert.Equal(t, map[string]*sessions.Session{}, store.sessionsStore)
 	})
 }

@@ -46,11 +46,10 @@ func NewRouter(db *bun.DB) *echo.Echo {
 	ac := controller.NewAuthController(au)
 
 	e.POST("/signup", uc.SignUp)
+	e.POST("/login", ac.Login)
+	e.POST("/logout", ac.Logout)
+
 	e.GET("/users/:id", uc.GetUser)
 	e.GET("/users", uc.GetUsers)
-
-	e.POST("/login", ac.Login)
-	e.DELETE("/logout", ac.Logout)
-
 	return e
 }

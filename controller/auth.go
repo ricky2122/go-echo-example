@@ -10,6 +10,8 @@ import (
 	"github.com/ricky2122/go-echo-example/usecase"
 )
 
+const SessionKey = "session_id"
+
 type LoginRequest struct {
 	Name     string `json:"name" validate:"required"`
 	Password string `json:"password" validate:"required"`
@@ -28,18 +30,18 @@ func NewAuthController(au IAuthUseCase) AuthController {
 }
 
 func (ac *AuthController) Login(c echo.Context) error {
-	// parse request
+	// Parse request
 	req := new(LoginRequest)
 	if err := c.Bind(req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request")
 	}
 
-	// validate
+	// Validate
 	if err := c.Validate(req); err != nil {
 		return err
 	}
 
-	// login usecase
+	// Login usecase
 	input := usecase.LoginUseCaseInput{Name: req.Name, Password: req.Password}
 	if err := ac.au.Login(input); err != nil {
 		if errors.Is(err, usecase.ErrLoginFailed) {
@@ -48,8 +50,8 @@ func (ac *AuthController) Login(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "internal server error")
 	}
 
-	// set session_id to cookie
-	sess, err := session.Get("session_id", c)
+	// Set session_id to cookie
+	sess, err := session.Get(SessionKey, c)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal server error")
 	}
@@ -57,21 +59,31 @@ func (ac *AuthController) Login(c echo.Context) error {
 		Path:     "/",
 		MaxAge:   86400 * 7,
 		HttpOnly: true,
-		Secure:   true,
+		// Secure:   true,
 	}
-	sess.Values[input.Name] = input.Name
+	sess.Values[SessionKey] = input.Name
 	if err := sess.Save(c.Request(), c.Response()); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal server error")
 	}
 
-	// send response
+	// Send response
 	return c.NoContent(http.StatusOK)
 }
 
 func (ac *AuthController) Logout(c echo.Context) error {
-	// Todo: get session_id from cookie
-
-	// Todo: logout usecase
+	// delete session
+	sess, err := session.Get(SessionKey, c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal server error")
+	}
+	sess.Options = &sessions.Options{
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+	}
+	if err := sess.Save(c.Request(), c.Response()); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal server error")
+	}
 
 	// send response
 	return c.NoContent(http.StatusNoContent)
